@@ -1,0 +1,18 @@
+syntax = "proto3";
+option java_multiple_files = true;
+package inventory.control.grpc.generated;
+
+message AddInventoryItemRequest {
+  string itemCode = 1;
+  string itemName = 2;
+  double quantity = 3;
+  bool isSentByPrimary = 4;
+}
+
+message AddInventoryItemResponse {
+  bool status = 1;
+}
+
+service AddInventoryItemService {
+  rpc addInventoryItem(AddInventoryItemRequest) returns (AddInventoryItemResponse);
+}

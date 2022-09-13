@@ -73,19 +73,22 @@ public class DistributedLock implements Watcher {
         return result;
     }
 
-    public void acquireLock() throws KeeperException, InterruptedException {
+    public void acquireLock() throws KeeperException, InterruptedException, UnsupportedEncodingException {
         String smallestNode = findSmallestNodePath();
-        if (!smallestNode.equals(childPath)) {
+        if (smallestNode.equals(childPath)) {
+            isAcquired = true;
+        } else {
             do {
-                System.out.println("Lock is currently acquired by node " + smallestNode + " .. hence waiting..");
+                System.out.println("Lock is currently acquired by node "
+                        + smallestNode + " .. hence waiting..");
                 eventReceivedFlag = new CountDownLatch(1);
                 watchedNode = smallestNode;
                 client.addWatch(smallestNode);
                 eventReceivedFlag.await();
                 smallestNode = findSmallestNodePath();
             } while (!smallestNode.equals(childPath));
+            isAcquired = true;
         }
-        isAcquired = true;
     }
 
     public void releaseLock() throws KeeperException, InterruptedException {
@@ -96,7 +99,8 @@ public class DistributedLock implements Watcher {
         isAcquired = false;
     }
 
-    private String findSmallestNodePath() throws KeeperException, InterruptedException {
+    private String findSmallestNodePath() throws
+            KeeperException, InterruptedException {
         List<String> childrenNodePaths = null;
         childrenNodePaths = client.getChildrenNodePaths(lockPath);
         Collections.sort(childrenNodePaths);
@@ -125,7 +129,8 @@ public class DistributedLock implements Watcher {
         }
     }
 
-    public boolean tryAcquireLock() throws KeeperException, InterruptedException {
+    public boolean tryAcquireLock() throws KeeperException,
+            InterruptedException, UnsupportedEncodingException {
         String smallestNode = findSmallestNodePath();
         if (smallestNode.equals(childPath)) {
             isAcquired = true;
