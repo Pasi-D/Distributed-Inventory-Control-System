@@ -7,6 +7,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import inventory.control.synchronization.DistributedTx;
+import inventory.control.synchronization.DistributedTxCoordinator;
+import inventory.control.synchronization.DistributedTxParticipant;
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
 import org.apache.zookeeper.KeeperException;
@@ -24,6 +27,10 @@ public class InventoryControlServer {
 
     private Map<String, InventoryItem> inventoryItems = new HashMap();
 
+    private DistributedTx transaction;
+    private AddInventoryItemServiceImpl addInventoryItemService;
+
+
     public static String buildServerData(String IP, int port) {
         StringBuilder builder = new StringBuilder();
         builder.append(IP).append(":").append(port);
@@ -37,6 +44,13 @@ public class InventoryControlServer {
     public InventoryControlServer(String host, int port) throws IOException, InterruptedException, KeeperException {
         this.serverPort = port;
         leaderLock = new DistributedLock("ICServerCluster", buildServerData(host, port));
+
+        addInventoryItemService = new AddInventoryItemServiceImpl(this);
+        transaction = new DistributedTxParticipant(addInventoryItemService);
+    }
+
+    public DistributedTx getTransaction() {
+        return transaction;
     }
 
     public void setInventoryItem(String itemCode, InventoryItem item) {
@@ -57,10 +71,16 @@ public class InventoryControlServer {
         leaderCampaignThread.start();
     }
 
+    private void beTheLeader() {
+        System.out.println("I got the leader lock. Now acting as primary");
+                isLeader.set(true);
+        transaction = new DistributedTxCoordinator(addInventoryItemService);
+    }
+
     public void startServer() throws IOException, InterruptedException, KeeperException {
         Server server = ServerBuilder
                 .forPort(serverPort)
-                .addService(new AddInventoryItemServiceImpl(this))
+                .addService(addInventoryItemService)
                 .build();
         server.start();
         System.out.println("Inventory control server started and ready to accept requests on port " + serverPort);
@@ -71,6 +91,7 @@ public class InventoryControlServer {
 
     public static void main (String[] args) throws Exception {
         DistributedLock.setZooKeeperURL("localhost:2181");
+        DistributedTx.setZooKeeperURL("localhost:2181");
 
         if (args.length != 1) {
             System.out.println("Usage executable-name <port>");
@@ -108,8 +129,7 @@ public class InventoryControlServer {
             try {
                 boolean leader = leaderLock.tryAcquireLock();
                 while (!leader) {
-                    byte[] leaderData =
-                            leaderLock.getLockHolderData();
+                    byte[] leaderData = leaderLock.getLockHolderData();
                     if (currentLeaderData != leaderData) {
                         currentLeaderData = leaderData;
                         setCurrentLeaderData(currentLeaderData);
@@ -117,11 +137,10 @@ public class InventoryControlServer {
                     Thread.sleep(10000);
                     leader = leaderLock.tryAcquireLock();
                 }
-                System.out.println("I got the leader lock. Now acting as primary");
-                isLeader.set(true);
                 currentLeaderData = null;
+                beTheLeader();
             } catch (Exception e){
-                System.out.println("Thread Exception " + e.getMessage());
+                e.printStackTrace();
             }
         }
     }

@@ -32,7 +32,20 @@
         <dependency>
             <groupId>inventory.control</groupId>
             <artifactId>synchronization-distributed-lock</artifactId>
-            <version>1.0.0</version>
+            <version>2.0.0</version>
+        </dependency>
+        <dependency>
+            <groupId>org.openjfx</groupId>
+            <artifactId>javafx</artifactId>
+            <version>17.0.2</version>
+            <type>pom</type>
+        </dependency>
+        <!--JavaFX-controls-->
+        <!-- https://mvnrepository.com/artifact/org.openjfx/javafx-controls -->
+        <dependency>
+            <groupId>org.openjfx</groupId>
+            <artifactId>javafx-controls</artifactId>
+            <version>17.0.2</version>
         </dependency>
     </dependencies>
 
