@@ -1,5 +1,8 @@
 package inventory.control.server;
 
+import inventory.control.synchronization.DistributedTxCoordinator;
+import inventory.control.synchronization.DistributedTxListener;
+import inventory.control.synchronization.DistributedTxParticipant;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.stub.StreamObserver;
@@ -7,16 +10,23 @@ import io.grpc.stub.StreamObserver;
 import inventory.control.grpc.generated.AddInventoryItemRequest;
 import inventory.control.grpc.generated.AddInventoryItemResponse;
 import inventory.control.grpc.generated.AddInventoryItemServiceGrpc;
+import javafx.util.Pair;
 import org.apache.zookeeper.KeeperException;
 
+import java.io.IOException;
 import java.util.List;
+import java.util.UUID;
 
-public class AddInventoryItemServiceImpl extends AddInventoryItemServiceGrpc.AddInventoryItemServiceImplBase {
+public class AddInventoryItemServiceImpl extends AddInventoryItemServiceGrpc.AddInventoryItemServiceImplBase implements DistributedTxListener {
     private ManagedChannel channel = null;
 
     AddInventoryItemServiceGrpc.AddInventoryItemServiceBlockingStub clientStub = null;
 
     private InventoryControlServer server;
+
+    private Pair<String, InventoryItem> tempDataHolder;
+
+    private boolean transactionStatus = false;
 
     public AddInventoryItemServiceImpl(InventoryControlServer server) {
         this.server = server;
@@ -27,31 +37,42 @@ public class AddInventoryItemServiceImpl extends AddInventoryItemServiceGrpc.Add
         String itemCode = request.getItemCode();
         String itemName = request.getItemName();
         double quantity = request.getQuantity();
-        boolean status = false;
         if (server.isLeader()) {
             // Act as primary
             try {
                 System.out.println("Adding inventory item to storage as Primary");
-                updateInventoryItem(itemCode, itemName, quantity);
+                startDistributedTx(itemCode, new InventoryItem(itemName, quantity));
                 updateSecondaryServers(itemCode, itemName, quantity);
-                status = true;
+                System.out.println("going to perform");
+                if (!itemName.isEmpty() && quantity > 0) {
+                    ((DistributedTxCoordinator)server.getTransaction()).perform();
+                    transactionStatus = true;
+                } else {
+                    ((DistributedTxCoordinator)server.getTransaction()).sendGlobalAbort();
+                }
             } catch (Exception e) {
-                System.out.println("Error while updating the account balance" + e.getMessage());
+                System.out.println("Error while updating the inventory list" + e.getMessage());
                 e.printStackTrace();
             }
         } else {
             // Act As Secondary
             if (request.getIsSentByPrimary()) {
                 System.out.println("Adding inventory item to storage on secondary, on primary's command");
-                updateInventoryItem(itemCode, itemName, quantity);
+                startDistributedTx(itemCode, new InventoryItem(itemName, quantity));
+                if (!itemName.isEmpty() && quantity > 0) {
+                    ((DistributedTxParticipant)server.getTransaction()).voteCommit();
+                    transactionStatus = true;
+                } else {
+                    ((DistributedTxParticipant)server.getTransaction()).voteAbort();
+                }
             } else {
                 AddInventoryItemResponse response = callPrimary(itemCode, itemName, quantity);
                 if (response.getStatus()) {
-                    status = true;
+                    transactionStatus = true;
                 }
             }
         }
-        AddInventoryItemResponse response = AddInventoryItemResponse.newBuilder().setStatus(status).build();
+        AddInventoryItemResponse response = AddInventoryItemResponse.newBuilder().setStatus(transactionStatus).build();
         responseObserver.onNext(response);
         responseObserver.onCompleted();
     }
@@ -79,6 +100,18 @@ public class AddInventoryItemServiceImpl extends AddInventoryItemServiceGrpc.Add
         return callServer(itemCode, itemName, quantity, false, IPAddress, port);
     }
 
+    private void updateInventory() {
+        if (tempDataHolder != null) {
+            String itemCode = tempDataHolder.getKey();
+            InventoryItem item = tempDataHolder.getValue();
+            server.setInventoryItem(itemCode, item);
+            System.out.println("Inventory Item with code " + itemCode +
+                    " updated with :- " + item.getItemName() + " (item-name) & quantity = "
+                    + item.getItemQuantity());
+            tempDataHolder = null;
+        }
+    }
+
     private AddInventoryItemResponse callServer(
             String itemCode,
             String itemName,
@@ -100,5 +133,24 @@ public class AddInventoryItemServiceImpl extends AddInventoryItemServiceGrpc.Add
                 .build();
         AddInventoryItemResponse response = clientStub.addInventoryItem(request);
         return response;
+    }
+
+    private void startDistributedTx(String itemCode, InventoryItem item) {
+        try {
+            server.getTransaction().start(itemCode, String.valueOf(UUID.randomUUID()));
+            tempDataHolder = new Pair(itemCode, item);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    @Override
+    public void onGlobalCommit() {
+        updateInventory();
+    }
+    @Override
+    public void onGlobalAbort() {
+        tempDataHolder = null;
+        System.out.println("Transaction Aborted by the Coordinator");
     }
 }
