@@ -16,3 +16,41 @@ message AddInventoryItemResponse {
 service AddInventoryItemService {
   rpc addInventoryItem(AddInventoryItemRequest) returns (AddInventoryItemResponse);
 }
+
+message GetInventoryItemRequest {
+  string itemCode = 1;
+}
+
+message GetInventoryItemResponse {
+  string itemName = 1;
+  double quantity = 2;
+}
+
+service GetInventoryItemService {
+  rpc getInventoryItem(GetInventoryItemRequest) returns (GetInventoryItemResponse);
+}
+
+message ViewInventoryStorageRequest {}
+
+message ViewInventoryStorageResponse {
+  map<string, double> items = 1;
+}
+
+service ViewInventoryStorageService {
+  rpc viewInventoryStorage(ViewInventoryStorageRequest) returns (ViewInventoryStorageResponse);
+}
+
+message ReserveInventoryItemRequest {
+  string itemCode = 1;
+  double quantity = 2;
+  bool isSentByPrimary = 3;
+}
+
+message ReserveInventoryItemResponse {
+  bool status = 1;
+  string message = 2;
+}
+
+service ReserveInventoryItemService {
+  rpc reserveInventoryItem(ReserveInventoryItemRequest) returns (ReserveInventoryItemResponse);
+}
