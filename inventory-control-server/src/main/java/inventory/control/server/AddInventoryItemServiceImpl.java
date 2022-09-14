@@ -43,12 +43,12 @@ public class AddInventoryItemServiceImpl extends AddInventoryItemServiceGrpc.Add
                 System.out.println("Adding inventory item to storage as Primary");
                 startDistributedTx(itemCode, new InventoryItem(itemName, quantity));
                 updateSecondaryServers(itemCode, itemName, quantity);
-                System.out.println("going to perform");
+                System.out.println("going to perform item addition");
                 if (!itemName.isEmpty() && quantity > 0) {
-                    ((DistributedTxCoordinator)server.getTransaction()).perform();
+                    ((DistributedTxCoordinator)server.getStoreTransaction()).perform();
                     transactionStatus = true;
                 } else {
-                    ((DistributedTxCoordinator)server.getTransaction()).sendGlobalAbort();
+                    ((DistributedTxCoordinator)server.getStoreTransaction()).sendGlobalAbort();
                 }
             } catch (Exception e) {
                 System.out.println("Error while updating the inventory list" + e.getMessage());
@@ -59,11 +59,12 @@ public class AddInventoryItemServiceImpl extends AddInventoryItemServiceGrpc.Add
             if (request.getIsSentByPrimary()) {
                 System.out.println("Adding inventory item to storage on secondary, on primary's command");
                 startDistributedTx(itemCode, new InventoryItem(itemName, quantity));
+                updateInventory();
                 if (!itemName.isEmpty() && quantity > 0) {
-                    ((DistributedTxParticipant)server.getTransaction()).voteCommit();
+                    ((DistributedTxParticipant)server.getStoreTransaction()).voteCommit();
                     transactionStatus = true;
                 } else {
-                    ((DistributedTxParticipant)server.getTransaction()).voteAbort();
+                    ((DistributedTxParticipant)server.getStoreTransaction()).voteAbort();
                 }
             } else {
                 AddInventoryItemResponse response = callPrimary(itemCode, itemName, quantity);
@@ -137,7 +138,7 @@ public class AddInventoryItemServiceImpl extends AddInventoryItemServiceGrpc.Add
 
     private void startDistributedTx(String itemCode, InventoryItem item) {
         try {
-            server.getTransaction().start(itemCode, String.valueOf(UUID.randomUUID()));
+            server.getStoreTransaction().start(itemCode, String.valueOf(UUID.randomUUID()));
             tempDataHolder = new Pair(itemCode, item);
         } catch (IOException e) {
             e.printStackTrace();
