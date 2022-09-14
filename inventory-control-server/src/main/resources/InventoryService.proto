@@ -54,3 +54,18 @@ message ReserveInventoryItemResponse {
 service ReserveInventoryItemService {
   rpc reserveInventoryItem(ReserveInventoryItemRequest) returns (ReserveInventoryItemResponse);
 }
+
+message GetInventoryStorageItemsRequest {}
+
+message InventoryItem {
+  string itemName = 1;
+  double itemQuantity = 2;
+}
+
+message GetInventoryStorageItemsResponse {
+  map<string, InventoryItem> inventoryItems = 1;
+}
+
+service GetInventoryStorageItemsService {
+  rpc getInventoryStorageItems(GetInventoryStorageItemsRequest) returns (GetInventoryStorageItemsResponse);
+}

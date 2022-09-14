@@ -34,6 +34,8 @@ public class InventoryControlServer {
     private ViewInventoryStorageServiceImpl viewInventoryStorageService;
     private ReserveInventoryItemServiceImpl reserveInventoryItemService;
 
+    private GetInventoryStorageItemsServiceImpl getInventoryStorageItemsService;
+
 
     public static String buildServerData(String IP, int port) {
         StringBuilder builder = new StringBuilder();
@@ -53,6 +55,7 @@ public class InventoryControlServer {
         getInventoryItemService = new GetInventoryItemServiceImpl(this);
         viewInventoryStorageService = new ViewInventoryStorageServiceImpl(this);
         reserveInventoryItemService = new ReserveInventoryItemServiceImpl(this);
+        getInventoryStorageItemsService = new GetInventoryStorageItemsServiceImpl(this);
 
         storeTransaction = new DistributedTxParticipant(addInventoryItemService);
         reserveTransaction = new DistributedTxParticipant(reserveInventoryItemService);
@@ -95,6 +98,7 @@ public class InventoryControlServer {
                 .addService(getInventoryItemService)
                 .addService(viewInventoryStorageService)
                 .addService(reserveInventoryItemService)
+                .addService(getInventoryStorageItemsService)
                 .build();
         server.start();
         System.out.println("Inventory control server started and ready to accept requests on port " + serverPort);
@@ -142,7 +146,7 @@ public class InventoryControlServer {
         return item;
     }
 
-    public Map<String, Double> getInventoryItems() {
+    public Map<String, Double> getInventoryItemsList() {
         Map<String, Double> itemList = new HashMap<>();
         inventoryItems.forEach((s, inventoryItem) -> {
             String currItemName = inventoryItem.getItemName();
@@ -154,6 +158,14 @@ public class InventoryControlServer {
             }
         });
         return itemList;
+    }
+
+    public void updateInventoryItemList(Map<String, InventoryItem> itemList) {
+        this.inventoryItems.putAll(itemList);
+    }
+
+    public Map<String, InventoryItem> getInventoryItems() {
+        return this.inventoryItems;
     }
 
     public boolean checkInventoryItemExistence(String itemCode) {
