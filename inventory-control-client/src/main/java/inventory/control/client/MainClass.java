@@ -15,7 +15,9 @@ public class MainClass {
                     addOperation, viewOperation, viewAllOperation);
             System.out.println("========= Allowed Operations =========");
             System.out.printf("- %s : Add Inventory Item \n", addOperation);
-            System.out.printf("- %s : View Inventory Item List \n", viewOperation);
+            System.out.printf("- %s : View all of inventory item storage \n", viewAllOperation);
+            System.out.printf("- %s : View Inventory Item by item code \n", viewOperation);
+            System.out.printf("- %s : Reserve an inventory item \n", reserveOperation);
             System.exit(1);
         }
 
