@@ -20,6 +20,8 @@ import java.util.UUID;
 public class AddInventoryItemServiceImpl extends AddInventoryItemServiceGrpc.AddInventoryItemServiceImplBase implements DistributedTxListener {
     private ManagedChannel channel = null;
 
+    private Utility utils;
+
     AddInventoryItemServiceGrpc.AddInventoryItemServiceBlockingStub clientStub = null;
 
     private InventoryControlServer server;
@@ -30,6 +32,7 @@ public class AddInventoryItemServiceImpl extends AddInventoryItemServiceGrpc.Add
 
     public AddInventoryItemServiceImpl(InventoryControlServer server) {
         this.server = server;
+        this.utils = new Utility(server);
     }
 
     @Override
@@ -71,6 +74,7 @@ public class AddInventoryItemServiceImpl extends AddInventoryItemServiceGrpc.Add
                 if (response.getStatus()) {
                     transactionStatus = true;
                 }
+                utils.updateSelfInventoryStorage();
             }
         }
         AddInventoryItemResponse response = AddInventoryItemResponse.newBuilder().setStatus(transactionStatus).build();

@@ -19,19 +19,15 @@ import java.util.UUID;
 public class ReserveInventoryItemServiceImpl
         extends ReserveInventoryItemServiceGrpc.ReserveInventoryItemServiceImplBase implements DistributedTxListener {
     private ManagedChannel channel = null;
-
+    private Utility utils;
     ReserveInventoryItemServiceGrpc.ReserveInventoryItemServiceBlockingStub clientStub = null;
-
     private InventoryControlServer server;
-
     private boolean transactionStatus = false;
-
     private String transactionMessage = "Failed to reserve";
-
     private Pair<String, InventoryItem> reservingDataHolder;
-
     public ReserveInventoryItemServiceImpl(InventoryControlServer server) {
         this.server = server;
+        this.utils = new Utility(server);
     }
 
     @Override
@@ -82,6 +78,7 @@ public class ReserveInventoryItemServiceImpl
                     transactionMessage = "Successfully reserved item";
                 }
             }
+            utils.updateSelfInventoryStorage();
         }
 
         ReserveInventoryItemResponse response = ReserveInventoryItemResponse.newBuilder()

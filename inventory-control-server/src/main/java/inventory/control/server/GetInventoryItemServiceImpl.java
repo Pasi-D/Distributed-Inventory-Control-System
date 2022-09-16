@@ -7,15 +7,22 @@ import io.grpc.stub.StreamObserver;
 
 public class GetInventoryItemServiceImpl extends GetInventoryItemServiceGrpc.GetInventoryItemServiceImplBase {
     private InventoryControlServer server;
+    private Utility utils;
 
     public GetInventoryItemServiceImpl(InventoryControlServer server) {
         this.server = server;
+        this.utils = new Utility(server);
     }
 
     @Override
     public void getInventoryItem(GetInventoryItemRequest request, StreamObserver<GetInventoryItemResponse> responseObserver) {
         String itemCode = request.getItemCode();
         System.out.printf("Request received to lookup item code %s...\n", itemCode);
+        // Updating the data replica of this node if its not leader
+        if (!server.isLeader()) {
+            utils.updateSelfInventoryStorage();
+        }
+
         InventoryItem item = server.getInventoryItemByCode(itemCode);
         GetInventoryItemResponse response;
         if (item == null) {
